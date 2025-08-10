@@ -3,9 +3,9 @@
 import os
 from pathlib import Path
 from decouple import config
-import dj_database_url
 import pymysql
 pymysql.install_as_MySQLdb()
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # --- Core ---
@@ -26,11 +26,11 @@ INSTALLED_APPS = [
     'authentication',
 ]
 
-# --- Middleware (WhiteNoise added for static files) ---
+# --- Middleware ---
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Added for static files
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -60,15 +60,27 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'authproject.wsgi.application'
 
-# --- Database Configuration ---
-# Railway MySQL in production, local MySQL in development
+# --- Database Configuration (Simplified) ---
 if 'DATABASE_URL' in os.environ:
-    # Production database (Railway MySQL)
+    # Parse Railway's DATABASE_URL manually
+    import urllib.parse as urlparse
+    url = urlparse.urlparse(os.environ['DATABASE_URL'])
     DATABASES = {
-        'default': dj_database_url.parse(os.environ.get('DATABASE_URL'))
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': url.path[1:],
+            'USER': url.username,
+            'PASSWORD': url.password,
+            'HOST': url.hostname,
+            'PORT': url.port,
+            'OPTIONS': {
+                'charset': 'utf8mb4',
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            },
+        }
     }
 else:
-    # Development database (your local MySQL)
+    # Development database
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
@@ -114,17 +126,15 @@ REST_FRAMEWORK = {
 
 # --- CORS Configuration ---
 if DEBUG:
-    # Development CORS settings
     CORS_ALLOWED_ORIGINS = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
     CORS_ALLOW_ALL_ORIGINS = True
 else:
-    # Production CORS settings - update with your frontend domain
     CORS_ALLOWED_ORIGINS = [
-        "https://your-frontend-domain.com",  # Update this
-        "https://robologiot.co.in",  # Your domain
+        "https://your-frontend-domain.com",
+        "https://robologiot.co.in",
     ]
     CORS_ALLOW_ALL_ORIGINS = False
 
@@ -168,7 +178,6 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# Only include STATICFILES_DIRS if the directory exists
 static_dir = os.path.join(BASE_DIR, 'static')
 if os.path.exists(static_dir):
     STATICFILES_DIRS = [static_dir]
